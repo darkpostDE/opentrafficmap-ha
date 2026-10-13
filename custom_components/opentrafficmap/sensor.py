@@ -67,7 +67,7 @@ class OtmVehicleSensor(SensorEntity):
     def update_value(self, value) -> None:
         self._attr_native_value = value
         if hasattr(self, 'hass') and self.hass:
-            self.async_write_ha_state()
+            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
 
 class OtmNodeSensor(SensorEntity):
@@ -102,7 +102,7 @@ class OtmNodeSensor(SensorEntity):
     def update_value(self, value) -> None:
         self._attr_native_value = value
         if hasattr(self, 'hass') and self.hass:
-            self.async_write_ha_state()
+            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
 
 try:

@@ -42,7 +42,7 @@ class OtmDeviceTracker(TrackerEntity):
         self._lat = lat
         self._lon = lon
         if hasattr(self, 'hass') and self.hass:
-            self.async_write_ha_state()
+            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
 
 try:
