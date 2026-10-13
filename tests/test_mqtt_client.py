@@ -21,6 +21,11 @@ SAMPLE_VEHICLE_JSON = {
                 "its_cam_driveDirection": "0",
                 "its_its_AccelerationControl_brakePedalEngaged": False,
                 "its_its_AccelerationControl_gasPedalEngaged": True,
+                "its_its_AccelerationControl_emergencyBrakeEngaged": False,
+                "its_its_AccelerationControl_collisionWarningEngaged": True,
+                "its_its_AccelerationControl_accEngaged": False,
+                "its_its_AccelerationControl_cruiseControlEngaged": True,
+                "its_its_AccelerationControl_speedLimiterEngaged": False,
                 "its_its_vehicleLengthValue": "46",
                 "its_cam_vehicleWidth": "18",
             }
@@ -44,6 +49,11 @@ def test_parse_vehicle_msg():
     assert result["drive_direction"] == "forward"
     assert result["brake_engaged"] is False
     assert result["gas_engaged"] is True
+    assert result["emergency_brake_engaged"] is False
+    assert result["collision_warning_engaged"] is True
+    assert result["acc_engaged"] is False
+    assert result["cruise_control_engaged"] is True
+    assert result["speed_limiter_engaged"] is False
     assert result["vehicle_length"] == 4.6
     assert result["vehicle_width"] == 1.8
 
@@ -61,3 +71,17 @@ def test_parse_stats_msg():
 
 def test_parse_stats_msg_invalid():
     assert parse_stats_msg("bad") is None
+
+
+def test_parse_vehicle_msg_altitude_unavailable():
+    sample = json.loads(json.dumps(SAMPLE_VEHICLE_JSON))
+    sample["decoded"]["layers"]["its"]["its_its_altitudeValue"] = "32760"
+    result = parse_vehicle_msg(json.dumps(sample))
+    assert result["altitude"] is None
+
+
+def test_parse_vehicle_msg_backward():
+    sample = json.loads(json.dumps(SAMPLE_VEHICLE_JSON))
+    sample["decoded"]["layers"]["its"]["its_cam_driveDirection"] = "1"
+    result = parse_vehicle_msg(json.dumps(sample))
+    assert result["drive_direction"] == "backward"

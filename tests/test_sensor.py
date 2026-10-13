@@ -88,6 +88,37 @@ def test_vehicle_sensor_vehicle_width():
     assert s.native_value == 1.8
 
 
+def test_vehicle_sensor_emergency_brake():
+    s = OtmVehicleSensor("2844264451", "emergency_brake_engaged")
+    assert s.native_unit_of_measurement is None
+    s.update_value(True)
+    assert s.native_value is True
+
+
+def test_vehicle_sensor_collision_warning():
+    s = OtmVehicleSensor("2844264451", "collision_warning_engaged")
+    s.update_value(True)
+    assert s.native_value is True
+
+
+def test_vehicle_sensor_acc_engaged():
+    s = OtmVehicleSensor("2844264451", "acc_engaged")
+    s.update_value(False)
+    assert s.native_value is False
+
+
+def test_vehicle_sensor_cruise_control():
+    s = OtmVehicleSensor("2844264451", "cruise_control_engaged")
+    s.update_value(True)
+    assert s.native_value is True
+
+
+def test_vehicle_sensor_speed_limiter():
+    s = OtmVehicleSensor("2844264451", "speed_limiter_engaged")
+    s.update_value(False)
+    assert s.native_value is False
+
+
 def test_node_sensor_temp():
     s = OtmNodeSensor("node1411", "temp")
     assert s.unique_id == "otm_node1411_temp"
