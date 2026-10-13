@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OpenTrafficMap Connection",
+        "data": {
+          "host": "MQTT Host",
+          "port": "MQTT Port",
+          "username": "Username",
+          "password": "Password",
+          "vehicle_topic": "Vehicle Topic",
+          "stats_topic": "Stats Topic"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to broker. Check credentials and host."
+    }
+  }
+}
