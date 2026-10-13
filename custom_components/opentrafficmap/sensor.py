@@ -31,7 +31,7 @@ _VEHICLE_SENSOR_META = {
 
 _NODE_SENSOR_META = {
     "temp": ("Temperature", UnitOfTemperature.CELSIUS, True),
-    "rbt":  ("Uptime",      "s",                       True),
+    "rbt":  ("Uptime",      "h",                       True),
 }
 
 

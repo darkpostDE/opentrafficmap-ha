@@ -177,6 +177,6 @@ class OtmMqttClient:
             self._hass.add_job(self._add_stats_cb, [temp_s, rbt_s])
             _LOGGER.debug("Node sensors created for node_id=%s", self._node_id)
         self._node_sensors["temp"].update_value(parsed["temp"])
-        self._node_sensors["rbt"].update_value(parsed["rbt"])
+        self._node_sensors["rbt"].update_value(round(parsed["rbt"] / 3600, 2))
         _LOGGER.debug("Node stats updated temp=%s rbt=%s", parsed["temp"], parsed["rbt"])
 
