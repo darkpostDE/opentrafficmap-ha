@@ -76,6 +76,9 @@ class OtmMqttClient:
             self._enabled = [s for s in ALL_CAM_SENSORS if raw.get(s, False)]
         elif isinstance(raw, list):
             self._enabled = raw
+        elif any(s in options for s in ALL_CAM_SENSORS):
+            # flat storage from OptionsFlow
+            self._enabled = [s for s in ALL_CAM_SENSORS if options.get(s, False)]
         else:
             self._enabled = DEFAULT_ENABLED_SENSORS
         self._ttl = int(options.get(CONF_VEHICLE_TTL, DEFAULT_VEHICLE_TTL))

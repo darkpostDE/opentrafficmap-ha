@@ -118,17 +118,19 @@ class OpenTrafficMapOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        raw = self._config_entry.options.get(CONF_ENABLED_SENSORS, DEFAULT_ENABLED_SENSORS)
-        if isinstance(raw, dict):
-            enabled = {s for s, v in raw.items() if v}
-        else:
-            enabled = set(raw)
+        opts = self._config_entry.options
+        # Options are stored flat: {"speed": True, "altitude": False, ..., "vehicle_ttl": 300}
+        # Fall back to default enabled list if key not present (first open)
+        def _default(sensor):
+            if sensor in opts:
+                return bool(opts[sensor])
+            return sensor in DEFAULT_ENABLED_SENSORS
 
         schema = vol.Schema({
-            vol.Optional(sensor, default=(sensor in enabled)): bool
+            vol.Optional(sensor, default=_default(sensor)): bool
             for sensor in ALL_CAM_SENSORS
         } | {
-            vol.Optional(CONF_VEHICLE_TTL, default=int(self._config_entry.options.get(CONF_VEHICLE_TTL, DEFAULT_VEHICLE_TTL))): int,
+            vol.Optional(CONF_VEHICLE_TTL, default=int(opts.get(CONF_VEHICLE_TTL, DEFAULT_VEHICLE_TTL))): int,
         })
 
         return self.async_show_form(
