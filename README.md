@@ -10,10 +10,11 @@ Integrates live V2X (Vehicle-to-Everything) traffic data from [opentrafficmap.or
 - Connects to the opentrafficmap.org MQTT broker (TLS, port 8883) using your node credentials
 - Receives decoded CAM messages from vehicles passing your node
 - Auto-creates a **Device Tracker** (GPS position on map) per vehicle
-- Auto-creates **Sensors** per vehicle: speed, heading, station type, altitude, yaw rate, drive direction, brake/gas state, vehicle dimensions
+- Auto-creates **Sensors** per vehicle: speed, heading, station type, altitude, yaw rate, drive direction, brake/gas/emergency brake/collision warning/ACC/cruise control/speed limiter state, vehicle dimensions
 - Creates **Node sensors** for your node's telemetry: temperature and uptime
 - Stores long-term statistics (min/max/mean) for all numeric sensors via HA Recorder
-- Configurable sensor selection per integration via UI
+- Configurable sensor selection and vehicle retention period via UI
+- Auto-reconnects to MQTT broker on connection loss (5–60s backoff)
 
 ## Requirements
 
@@ -65,16 +66,18 @@ Replace `node1411` with your actual node ID.
 
 4. Click **Submit** — the integration validates the connection before saving
 
-### Sensor Selection
+### Sensor Selection & Retention
 
-After setup, click **Configure** on the integration to choose which CAM fields to expose as sensors:
+After setup, click **Configure** on the integration to choose which CAM fields to expose as sensors and how long vehicles are kept:
 
 - Speed, Heading, Station Type *(default)*
 - Altitude, Yaw Rate, Drive Direction
 - Brake Engaged, Gas Engaged
+- Emergency Brake Engaged, Collision Warning Engaged
+- ACC Engaged, Cruise Control Engaged, Speed Limiter Engaged
 - Vehicle Length, Vehicle Width
 
-Changes take effect for newly seen vehicles.
+**Vehicle TTL** (default: 300 s) — vehicles with no message for this duration are removed from HA. Set to `0` to never remove. Historical statistics in HA Recorder are kept regardless.
 
 ---
 
@@ -93,6 +96,11 @@ Changes take effect for newly seen vehicles.
 | `sensor.otm_<stationId>_drive_direction` | — | `forward` or `backward` |
 | `sensor.otm_<stationId>_brake_engaged` | — | Brake pedal state |
 | `sensor.otm_<stationId>_gas_engaged` | — | Gas pedal state |
+| `sensor.otm_<stationId>_emergency_brake_engaged` | — | Emergency brake active |
+| `sensor.otm_<stationId>_collision_warning_engaged` | — | Collision warning active |
+| `sensor.otm_<stationId>_acc_engaged` | — | Adaptive cruise control active |
+| `sensor.otm_<stationId>_cruise_control_engaged` | — | Cruise control active |
+| `sensor.otm_<stationId>_speed_limiter_engaged` | — | Speed limiter active |
 | `sensor.otm_<stationId>_vehicle_length` | m | Vehicle length |
 | `sensor.otm_<stationId>_vehicle_width` | m | Vehicle width |
 
@@ -102,6 +110,21 @@ Changes take effect for newly seen vehicles.
 |--------|------|-------------|
 | `sensor.otm_<nodeId>_temp` | °C | Node temperature |
 | `sensor.otm_<nodeId>_rbt` | s | Node uptime counter |
+
+---
+
+## Debug Logging
+
+Add to your HA `configuration.yaml` to enable verbose logging:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.opentrafficmap: debug
+```
+
+Logs show MQTT connect/disconnect, every incoming message (topic + length), new vehicle detection, entity creation, and TTL cleanup. View in **Settings → System → Logs**.
 
 ---
 
