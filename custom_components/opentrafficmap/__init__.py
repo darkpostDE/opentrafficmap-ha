@@ -18,6 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault(entry.entry_id, {})
 
+    _LOGGER.debug("async_setup_entry options=%s", dict(entry.options))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     client = OtmMqttClient(
