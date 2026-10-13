@@ -3,14 +3,15 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg)](https://www.home-assistant.io)
 
-Integrates live V2X (Vehicle-to-Everything) traffic data from [opentrafficmap.org](https://opentrafficmap.org) into Home Assistant. Automatically creates device tracker and sensor entities for each vehicle detected by your roadside unit (RSU).
+Integrates live V2X (Vehicle-to-Everything) traffic data from [opentrafficmap.org](https://opentrafficmap.org) into Home Assistant. Vehicles passing your registered roadside node broadcast ETSI ITS CAM messages — opentrafficmap.org decodes them and forwards the data via MQTT. This integration subscribes to that feed and automatically creates entities for each vehicle detected.
 
 ## What It Does
 
-- Connects directly to your opentrafficmap.org MQTT feed (TLS, port 8883)
+- Connects to the opentrafficmap.org MQTT broker (TLS, port 8883) using your node credentials
+- Receives decoded CAM messages from vehicles passing your node
 - Auto-creates a **Device Tracker** (GPS position on map) per vehicle
 - Auto-creates **Sensors** per vehicle: speed, heading, station type, altitude, yaw rate, drive direction, brake/gas state, vehicle dimensions
-- Creates **Node sensors** for RSU telemetry: temperature and uptime
+- Creates **Node sensors** for your node's telemetry: temperature and uptime
 - Stores long-term statistics (min/max/mean) for all numeric sensors via HA Recorder
 - Configurable sensor selection per integration via UI
 
@@ -49,7 +50,7 @@ cp -r custom_components/opentrafficmap /config/custom_components/
 
 1. Go to **Settings → Devices & Services → + Add Integration**
 2. Search for **OpenTrafficMap**
-3. Fill in your credentials:
+3. Fill in your node credentials:
 
 | Field | Example |
 |-------|---------|
@@ -59,6 +60,8 @@ cp -r custom_components/opentrafficmap /config/custom_components/
 | Password | `your-mqtt-password` |
 | Vehicle Topic | `its/node1411/packet/json` |
 | Stats Topic | `its/node1411/stats` |
+
+Replace `node1411` with your actual node ID.
 
 4. Click **Submit** — the integration validates the connection before saving
 
@@ -77,7 +80,7 @@ Changes take effect for newly seen vehicles.
 
 ## Entities
 
-### Per Vehicle (auto-created on first message)
+### Per Vehicle (auto-created when a vehicle is first detected)
 
 | Entity | Unit | Description |
 |--------|------|-------------|
@@ -97,14 +100,14 @@ Changes take effect for newly seen vehicles.
 
 | Entity | Unit | Description |
 |--------|------|-------------|
-| `sensor.otm_<nodeId>_temp` | °C | RSU temperature |
-| `sensor.otm_<nodeId>_rbt` | s | RSU uptime counter |
+| `sensor.otm_<nodeId>_temp` | °C | Node temperature |
+| `sensor.otm_<nodeId>_rbt` | s | Node uptime counter |
 
 ---
 
 ## Map Card
 
-Add a Map card to your dashboard and select `device_tracker.otm_*` entities to see vehicle positions in real time.
+Add a Map card to your dashboard and select `device_tracker.otm_*` entities to see vehicle positions in real time. Entities only appear after the first vehicle message is received — the map will be empty until a vehicle passes your node.
 
 ---
 
@@ -112,13 +115,13 @@ Add a Map card to your dashboard and select `device_tracker.otm_*` entities to s
 
 Numeric sensors (speed, heading, altitude, etc.) have `state_class: measurement` set, so Home Assistant automatically records long-term statistics. Access via:
 
-**Developer Tools → Statistics** or add a **Statistics Graph Card** to your dashboard.
+**Developer Tools → Statistics** or add a **Statistics Graph Card** to your dashboard to view min/max/mean over time.
 
 ---
 
-## Data Source
+## How It Works
 
-This integration decodes **ETSI ITS CAM** (Cooperative Awareness Messages) forwarded as JSON by opentrafficmap.org. Messages are signed with V2X certificates (e.g. VW Group PKI) and verified server-side before forwarding.
+Vehicles equipped with V2X hardware (ITS-G5 / IEEE 802.11p) broadcast ETSI ITS CAM (Cooperative Awareness Messages) at up to 10 Hz. The opentrafficmap.org roadside unit at your node receives and decodes these packets, then forwards them as JSON to the MQTT broker. This integration subscribes to your node's topic and parses the decoded data into Home Assistant entities.
 
 ---
 
