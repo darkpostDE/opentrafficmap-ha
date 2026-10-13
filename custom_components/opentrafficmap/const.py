@@ -3,6 +3,9 @@ DOMAIN = "opentrafficmap"
 CONF_VEHICLE_TOPIC = "vehicle_topic"
 CONF_STATS_TOPIC = "stats_topic"
 CONF_ENABLED_SENSORS = "enabled_sensors"
+CONF_VEHICLE_TTL = "vehicle_ttl"
+
+DEFAULT_VEHICLE_TTL = 300  # seconds; 0 = never remove
 
 DATA_MQTT_CLIENT = "mqtt_client"
 DATA_ADD_VEHICLE_ENTITIES = "add_vehicle_entities"
@@ -18,6 +21,11 @@ ALL_CAM_SENSORS = [
     "drive_direction",
     "brake_engaged",
     "gas_engaged",
+    "emergency_brake_engaged",
+    "collision_warning_engaged",
+    "acc_engaged",
+    "cruise_control_engaged",
+    "speed_limiter_engaged",
     "vehicle_length",
     "vehicle_width",
 ]

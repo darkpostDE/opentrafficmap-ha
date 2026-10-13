@@ -2,8 +2,12 @@ from __future__ import annotations
 import json
 import ssl
 import logging
+import time
 import paho.mqtt.client as mqtt
-from .const import CONF_VEHICLE_TOPIC, CONF_STATS_TOPIC, CONF_ENABLED_SENSORS, ALL_CAM_SENSORS, DEFAULT_ENABLED_SENSORS
+from .const import (
+    CONF_VEHICLE_TOPIC, CONF_STATS_TOPIC, CONF_ENABLED_SENSORS, CONF_VEHICLE_TTL,
+    ALL_CAM_SENSORS, DEFAULT_ENABLED_SENSORS, DEFAULT_VEHICLE_TTL,
+)
 from .sensor import OtmVehicleSensor, OtmNodeSensor
 from .device_tracker import OtmDeviceTracker
 
@@ -34,6 +38,11 @@ def parse_vehicle_msg(payload: str) -> dict | None:
             "drive_direction": "forward" if str(its.get("its_cam_driveDirection", "0")) == "0" else "backward",
             "brake_engaged": bool(its.get("its_its_AccelerationControl_brakePedalEngaged", False)),
             "gas_engaged": bool(its.get("its_its_AccelerationControl_gasPedalEngaged", False)),
+            "emergency_brake_engaged": bool(its.get("its_its_AccelerationControl_emergencyBrakeEngaged", False)),
+            "collision_warning_engaged": bool(its.get("its_its_AccelerationControl_collisionWarningEngaged", False)),
+            "acc_engaged": bool(its.get("its_its_AccelerationControl_accEngaged", False)),
+            "cruise_control_engaged": bool(its.get("its_its_AccelerationControl_cruiseControlEngaged", False)),
+            "speed_limiter_engaged": bool(its.get("its_its_AccelerationControl_speedLimiterEngaged", False)),
             "vehicle_length": round(int(its["its_its_vehicleLengthValue"]) / 10.0, 1),
             "vehicle_width": round(int(its["its_cam_vehicleWidth"]) / 10.0, 1),
         }
@@ -59,6 +68,7 @@ class OtmMqttClient:
         self._known_stations: set[str] = set()
         self._node_sensors: dict[str, OtmNodeSensor] = {}
         self._vehicle_entities: dict[str, dict] = {}
+        self._last_seen: dict[str, float] = {}
         parts = data[CONF_STATS_TOPIC].split("/")
         self._node_id = parts[1] if len(parts) >= 2 else "node"
         raw = options.get(CONF_ENABLED_SENSORS)
@@ -68,6 +78,8 @@ class OtmMqttClient:
             self._enabled = raw
         else:
             self._enabled = DEFAULT_ENABLED_SENSORS
+        self._ttl = int(options.get(CONF_VEHICLE_TTL, DEFAULT_VEHICLE_TTL))
+        _LOGGER.debug("OtmMqttClient init: enabled=%s ttl=%ss", self._enabled, self._ttl)
 
     def start(self) -> None:
         try:
@@ -77,16 +89,20 @@ class OtmMqttClient:
         client.username_pw_set(self._data["username"], self._data["password"])
         client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
         client.on_connect = self._on_connect
+        client.on_disconnect = self._on_disconnect
         client.on_message = self._on_message
+        client.reconnect_delay_set(min_delay=5, max_delay=60)
         client.connect_async(self._data["host"], self._data["port"], keepalive=60)
         client.loop_start()
         self._client = client
+        _LOGGER.debug("MQTT client started, connecting to %s:%s", self._data["host"], self._data["port"])
 
     def stop(self) -> None:
         if self._client:
             self._client.loop_stop()
             self._client.disconnect()
             self._client = None
+            _LOGGER.debug("MQTT client stopped")
 
     def _on_connect(self, client, userdata, flags, rc) -> None:
         if rc != 0:
@@ -94,11 +110,19 @@ class OtmMqttClient:
             return
         client.subscribe(self._data[CONF_VEHICLE_TOPIC])
         client.subscribe(self._data[CONF_STATS_TOPIC])
-        _LOGGER.debug("MQTT connected, subscribed to topics")
+        _LOGGER.debug("MQTT connected, subscribed vehicle=%s stats=%s",
+                      self._data[CONF_VEHICLE_TOPIC], self._data[CONF_STATS_TOPIC])
+
+    def _on_disconnect(self, client, userdata, rc) -> None:
+        if rc != 0:
+            _LOGGER.warning("MQTT disconnected unexpectedly rc=%s, will auto-reconnect (5-60s backoff)", rc)
+        else:
+            _LOGGER.debug("MQTT disconnected cleanly")
 
     def _on_message(self, client, userdata, msg) -> None:
         topic = msg.topic
         payload = msg.payload.decode("utf-8", errors="ignore")
+        _LOGGER.debug("MQTT message topic=%s len=%d", topic, len(payload))
         if topic == self._data[CONF_VEHICLE_TOPIC]:
             self._handle_vehicle(payload)
         elif topic == self._data[CONF_STATS_TOPIC]:
@@ -107,8 +131,12 @@ class OtmMqttClient:
     def _handle_vehicle(self, payload: str) -> None:
         parsed = parse_vehicle_msg(payload)
         if not parsed:
+            _LOGGER.debug("Vehicle message parse failed")
             return
         sid = parsed["station_id"]
+        now = time.monotonic()
+        self._last_seen[sid] = now
+
         if sid not in self._known_stations:
             self._known_stations.add(sid)
             tracker = OtmDeviceTracker(sid)
@@ -117,20 +145,38 @@ class OtmMqttClient:
                 entities[s] = OtmVehicleSensor(sid, s)
             self._vehicle_entities[sid] = entities
             self._hass.add_job(self._add_vehicle_cb, list(entities.values()))
+            _LOGGER.debug("New vehicle station_id=%s, created %d entities", sid, len(entities))
+
         ents = self._vehicle_entities[sid]
         ents["tracker"].update_position(parsed["lat"], parsed["lon"])
         for s in self._enabled:
             if s in parsed:
-                ents[s].update_value(parsed[s] if s not in ("speed",) else round(parsed[s], 1))
+                val = round(parsed[s], 1) if s == "speed" else parsed[s]
+                ents[s].update_value(val)
+
+        if self._ttl > 0:
+            self._cleanup_stale(now)
+
+    def _cleanup_stale(self, now: float) -> None:
+        stale = [sid for sid, ts in self._last_seen.items() if now - ts > self._ttl]
+        for sid in stale:
+            _LOGGER.debug("Vehicle station_id=%s stale after %ss, removing", sid, self._ttl)
+            self._known_stations.discard(sid)
+            self._vehicle_entities.pop(sid, None)
+            self._last_seen.pop(sid, None)
 
     def _handle_stats(self, payload: str) -> None:
         parsed = parse_stats_msg(payload)
         if not parsed:
+            _LOGGER.debug("Stats message parse failed")
             return
         if not self._node_sensors:
             temp_s = OtmNodeSensor(self._node_id, "temp")
             rbt_s = OtmNodeSensor(self._node_id, "rbt")
             self._node_sensors = {"temp": temp_s, "rbt": rbt_s}
             self._hass.add_job(self._add_stats_cb, [temp_s, rbt_s])
+            _LOGGER.debug("Node sensors created for node_id=%s", self._node_id)
         self._node_sensors["temp"].update_value(parsed["temp"])
         self._node_sensors["rbt"].update_value(parsed["rbt"])
+        _LOGGER.debug("Node stats updated temp=%s rbt=%s", parsed["temp"], parsed["rbt"])
+

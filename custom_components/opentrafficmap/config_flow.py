@@ -7,7 +7,8 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from .const import (
     DOMAIN, CONF_VEHICLE_TOPIC, CONF_STATS_TOPIC,
-    CONF_ENABLED_SENSORS, ALL_CAM_SENSORS, DEFAULT_ENABLED_SENSORS,
+    CONF_ENABLED_SENSORS, CONF_VEHICLE_TTL,
+    ALL_CAM_SENSORS, DEFAULT_ENABLED_SENSORS, DEFAULT_VEHICLE_TTL,
 )
 
 STEP_USER_DATA_SCHEMA = vol.Schema({
@@ -20,16 +21,21 @@ STEP_USER_DATA_SCHEMA = vol.Schema({
 })
 
 _SENSOR_LABELS = {
-    "speed":           "Speed (km/h)",
-    "heading":         "Heading (°)",
-    "station_type":    "Station Type",
-    "altitude":        "Altitude (m)",
-    "yaw_rate":        "Yaw Rate (°/s)",
-    "drive_direction": "Drive Direction",
-    "brake_engaged":   "Brake Engaged",
-    "gas_engaged":     "Gas Engaged",
-    "vehicle_length":  "Vehicle Length (m)",
-    "vehicle_width":   "Vehicle Width (m)",
+    "speed":                     "Speed (km/h)",
+    "heading":                   "Heading (°)",
+    "station_type":              "Station Type",
+    "altitude":                  "Altitude (m)",
+    "yaw_rate":                  "Yaw Rate (°/s)",
+    "drive_direction":           "Drive Direction",
+    "brake_engaged":             "Brake Engaged",
+    "gas_engaged":               "Gas Engaged",
+    "emergency_brake_engaged":   "Emergency Brake Engaged",
+    "collision_warning_engaged": "Collision Warning Engaged",
+    "acc_engaged":               "ACC Engaged",
+    "cruise_control_engaged":    "Cruise Control Engaged",
+    "speed_limiter_engaged":     "Speed Limiter Engaged",
+    "vehicle_length":            "Vehicle Length (m)",
+    "vehicle_width":             "Vehicle Width (m)",
 }
 
 
@@ -119,6 +125,8 @@ class OpenTrafficMapOptionsFlow(config_entries.OptionsFlow):
         schema = vol.Schema({
             vol.Optional(sensor, default=(sensor in current)): bool
             for sensor in ALL_CAM_SENSORS
+        } | {
+            vol.Optional(CONF_VEHICLE_TTL, default=int(self._config_entry.options.get(CONF_VEHICLE_TTL, DEFAULT_VEHICLE_TTL))): int,
         })
 
         return self.async_show_form(

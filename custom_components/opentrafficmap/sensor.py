@@ -12,16 +12,21 @@ except ImportError:
 from .const import DOMAIN
 
 _VEHICLE_SENSOR_META = {
-    "speed":            ("Speed",            "km/h",  True),
-    "heading":          ("Heading",          "°",     True),
-    "station_type":     ("Station Type",     None,    False),
-    "altitude":         ("Altitude",         "m",     True),
-    "yaw_rate":         ("Yaw Rate",         "°/s",   True),
-    "drive_direction":  ("Drive Direction",  None,    False),
-    "brake_engaged":    ("Brake Engaged",    None,    False),
-    "gas_engaged":      ("Gas Engaged",      None,    False),
-    "vehicle_length":   ("Vehicle Length",   "m",     True),
-    "vehicle_width":    ("Vehicle Width",    "m",     True),
+    "speed":                    ("Speed",                    "km/h",  True),
+    "heading":                  ("Heading",                  "°",     True),
+    "station_type":             ("Station Type",             None,    False),
+    "altitude":                 ("Altitude",                 "m",     True),
+    "yaw_rate":                 ("Yaw Rate",                 "°/s",   True),
+    "drive_direction":          ("Drive Direction",          None,    False),
+    "brake_engaged":            ("Brake Engaged",            None,    False),
+    "gas_engaged":              ("Gas Engaged",              None,    False),
+    "emergency_brake_engaged":  ("Emergency Brake",          None,    False),
+    "collision_warning_engaged":("Collision Warning",        None,    False),
+    "acc_engaged":              ("ACC Engaged",              None,    False),
+    "cruise_control_engaged":   ("Cruise Control",          None,    False),
+    "speed_limiter_engaged":    ("Speed Limiter",            None,    False),
+    "vehicle_length":           ("Vehicle Length",           "m",     True),
+    "vehicle_width":            ("Vehicle Width",            "m",     True),
 }
 
 _NODE_SENSOR_META = {
