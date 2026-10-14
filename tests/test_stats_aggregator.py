@@ -9,7 +9,7 @@ from custom_components.opentrafficmap.stats_aggregator import OtmStatsAggregator
 VEHICLE = {
     "station_id": "111",
     "speed": 50.0,
-    "station_type": "5",
+    "station_type": "Passenger Car",
     "lat": 49.5,
     "lon": 8.7,
     "emergency_brake_engaged": False,
@@ -75,11 +75,11 @@ def test_collision_warning_event():
 def test_station_type_counts():
     with tempfile.TemporaryDirectory() as d:
         agg = make_agg(d)
-        agg.update({**VEHICLE, "station_id": "111", "station_type": "5"})
-        agg.update({**VEHICLE, "station_id": "222", "station_type": "8"})
+        agg.update({**VEHICLE, "station_id": "111", "station_type": "Passenger Car"})
+        agg.update({**VEHICLE, "station_id": "222", "station_type": "Heavy Truck"})
         counts = json.loads(agg.station_type_counts)
-        assert counts["5"] == 1
-        assert counts["8"] == 1
+        assert counts["Passenger Car"] == 1
+        assert counts["Heavy Truck"] == 1
 
 
 def test_persistence():

@@ -43,7 +43,7 @@ def test_parse_vehicle_msg():
     assert abs(result["lon"] - 8.5219273) < 0.0000001
     assert abs(result["speed"] - 16.452) < 0.01
     assert abs(result["heading"] - 44.4) < 0.01
-    assert result["station_type"] == "5"
+    assert result["station_type"] == "Passenger Car"
     assert result["altitude"] == 145.6
     assert result["yaw_rate"] == -15.55
     assert result["drive_direction"] == "forward"
