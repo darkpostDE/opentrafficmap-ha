@@ -104,6 +104,11 @@ class OtmMqttClient:
         client.connect_async(self._data["host"], self._data["port"], keepalive=60)
         client.loop_start()
         self._client = client
+        if self._aggregator and not self._agg_sensors:
+            sensors = {k: OtmAggSensor(self._node_id, k) for k in ALL_AGG_SENSORS}
+            self._agg_sensors = sensors
+            self._hass.add_job(self._add_stats_cb, list(sensors.values()))
+            _LOGGER.debug("Aggregation sensors pre-created for node_id=%s", self._node_id)
         _LOGGER.debug("MQTT client started, connecting to %s:%s", self._data["host"], self._data["port"])
 
     def stop(self) -> None:
@@ -176,14 +181,9 @@ class OtmMqttClient:
             self._cleanup_stale(now)
 
     def _push_agg_sensors(self) -> None:
-        if not self._aggregator:
+        if not self._aggregator or not self._agg_sensors:
             return
         agg = self._aggregator
-        if not self._agg_sensors:
-            sensors = {k: OtmAggSensor(self._node_id, k) for k in ALL_AGG_SENSORS}
-            self._agg_sensors = sensors
-            self._hass.add_job(self._add_stats_cb, list(sensors.values()))
-            _LOGGER.debug("Aggregation sensors created for node_id=%s", self._node_id)
         s = self._agg_sensors
         s["vehicles_total"].update_value(agg.vehicles_total)
         s["speed_avg"].update_value(agg.speed_avg)
