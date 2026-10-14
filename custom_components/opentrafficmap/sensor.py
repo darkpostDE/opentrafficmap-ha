@@ -1,13 +1,15 @@
 from __future__ import annotations
 try:
     from homeassistant.components.sensor import SensorEntity, SensorStateClass
-    from homeassistant.const import UnitOfTemperature
+    from homeassistant.const import UnitOfTemperature, UnitOfTime
 except ImportError:
     SensorEntity = object
     class SensorStateClass:
         MEASUREMENT = "measurement"
     class UnitOfTemperature:
         CELSIUS = "°C"
+    class UnitOfTime:
+        HOURS = "h"
 
 from .const import DOMAIN
 
@@ -31,7 +33,7 @@ _VEHICLE_SENSOR_META = {
 
 _NODE_SENSOR_META = {
     "temp":                ("Temperature",       UnitOfTemperature.CELSIUS, True),
-    "rbt":                 ("Uptime",            "h",                       True),
+    "rbt":                 ("Uptime",            UnitOfTime.HOURS,          True),
     "vehicles_total":      ("Vehicles Total",    None,                      True),
     "speed_avg":           ("Avg Speed",         "km/h",                    True),
     "speed_max":           ("Max Speed",         "km/h",                    True),
