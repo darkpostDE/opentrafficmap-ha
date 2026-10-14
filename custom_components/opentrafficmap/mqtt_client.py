@@ -6,10 +6,11 @@ import time
 import paho.mqtt.client as mqtt
 from .const import (
     CONF_VEHICLE_TOPIC, CONF_STATS_TOPIC, CONF_ENABLED_SENSORS, CONF_VEHICLE_TTL,
-    ALL_CAM_SENSORS, DEFAULT_ENABLED_SENSORS, DEFAULT_VEHICLE_TTL,
+    ALL_CAM_SENSORS, ALL_AGG_SENSORS, DEFAULT_ENABLED_SENSORS, DEFAULT_VEHICLE_TTL,
 )
-from .sensor import OtmVehicleSensor, OtmNodeSensor
+from .sensor import OtmVehicleSensor, OtmNodeSensor, OtmAggSensor
 from .device_tracker import OtmDeviceTracker
+from .stats_aggregator import OtmStatsAggregator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,14 +60,16 @@ def parse_stats_msg(payload: str) -> dict | None:
 
 
 class OtmMqttClient:
-    def __init__(self, hass, data: dict, options: dict, add_vehicle_cb, add_stats_cb) -> None:
+    def __init__(self, hass, data: dict, options: dict, add_vehicle_cb, add_stats_cb, config_dir: str = "") -> None:
         self._hass = hass
         self._data = data
         self._add_vehicle_cb = add_vehicle_cb
         self._add_stats_cb = add_stats_cb
+        self._config_dir = config_dir
         self._client: mqtt.Client | None = None
         self._known_stations: set[str] = set()
         self._node_sensors: dict[str, OtmNodeSensor] = {}
+        self._agg_sensors: dict[str, OtmAggSensor] = {}
         self._vehicle_entities: dict[str, dict] = {}
         self._last_seen: dict[str, float] = {}
         parts = data[CONF_STATS_TOPIC].split("/")
@@ -82,7 +85,10 @@ class OtmMqttClient:
         else:
             self._enabled = DEFAULT_ENABLED_SENSORS
         self._ttl = int(options.get(CONF_VEHICLE_TTL, DEFAULT_VEHICLE_TTL))
-        _LOGGER.debug("OtmMqttClient init: enabled=%s ttl=%ss", self._enabled, self._ttl)
+        self._aggregator: OtmStatsAggregator | None = None
+        if config_dir:
+            self._aggregator = OtmStatsAggregator(self._node_id, config_dir)
+        _LOGGER.debug("OtmMqttClient init: enabled=%s ttl=%ss aggregator=%s", self._enabled, self._ttl, bool(self._aggregator))
 
     def start(self) -> None:
         try:
@@ -157,8 +163,35 @@ class OtmMqttClient:
                 val = round(parsed[s], 1) if s == "speed" else parsed[s]
                 ents[s].update_value(val)
 
+        if self._aggregator:
+            events = self._aggregator.update(parsed)
+            self._push_agg_sensors()
+            for event_type, event_data in events:
+                self._hass.loop.call_soon_threadsafe(
+                    self._hass.bus.async_fire, event_type, event_data
+                )
+                _LOGGER.debug("Fired event %s data=%s", event_type, event_data)
+
         if self._ttl > 0:
             self._cleanup_stale(now)
+
+    def _push_agg_sensors(self) -> None:
+        if not self._aggregator:
+            return
+        agg = self._aggregator
+        if not self._agg_sensors:
+            sensors = {k: OtmAggSensor(self._node_id, k) for k in ALL_AGG_SENSORS}
+            self._agg_sensors = sensors
+            self._hass.add_job(self._add_stats_cb, list(sensors.values()))
+            _LOGGER.debug("Aggregation sensors created for node_id=%s", self._node_id)
+        s = self._agg_sensors
+        s["vehicles_total"].update_value(agg.vehicles_total)
+        s["speed_avg"].update_value(agg.speed_avg)
+        s["speed_max"].update_value(agg.speed_max)
+        s["emergency_brakes"].update_value(agg.emergency_brakes)
+        s["collision_warnings"].update_value(agg.collision_warnings)
+        s["station_type_counts"].update_value(agg.station_type_counts)
+        s["debug"].update_value(len(agg.debug_attributes), agg.debug_attributes)
 
     def _cleanup_stale(self, now: float) -> None:
         stale = [sid for sid, ts in self._last_seen.items() if now - ts > self._ttl]

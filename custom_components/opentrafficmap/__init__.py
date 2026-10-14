@@ -27,6 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         dict(entry.options),
         hass.data[DOMAIN][entry.entry_id]["add_vehicle"],
         hass.data[DOMAIN][entry.entry_id]["add_stats"],
+        hass.config.config_dir,
     )
     hass.data[DOMAIN][entry.entry_id][DATA_MQTT_CLIENT] = client
     await hass.async_add_executor_job(client.start)

@@ -31,3 +31,14 @@ ALL_CAM_SENSORS = [
 ]
 
 DEFAULT_ENABLED_SENSORS = ["speed", "heading", "station_type"]
+
+ALL_AGG_SENSORS = [
+    "vehicles_total",
+    "speed_avg",
+    "speed_max",
+    "emergency_brakes",
+    "collision_warnings",
+    "station_type_counts",
+    "debug",
+]
+
