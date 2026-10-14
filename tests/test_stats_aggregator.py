@@ -86,10 +86,12 @@ def test_persistence():
     with tempfile.TemporaryDirectory() as d:
         agg = make_agg(d)
         agg.update({**VEHICLE, "speed": 90.0})
-        # reload from disk
+        assert agg.vehicles_total == 1
+        # reload from disk — trigger lazy load via update() with a new station
         agg2 = make_agg(d)
-        assert agg2.speed_max == 90.0
-        assert agg2.vehicles_total == 1
+        agg2.update({**VEHICLE, "station_id": "999", "speed": 10.0})
+        assert agg2.speed_max == 90.0  # persisted from first run
+        assert agg2.vehicles_total == 2  # 1 loaded + 1 new
 
 
 def test_debug_attributes():
