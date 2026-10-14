@@ -7,6 +7,7 @@ import paho.mqtt.client as mqtt
 from .const import (
     CONF_VEHICLE_TOPIC, CONF_STATS_TOPIC, CONF_ENABLED_SENSORS, CONF_VEHICLE_TTL,
     ALL_CAM_SENSORS, ALL_AGG_SENSORS, DEFAULT_ENABLED_SENSORS, DEFAULT_VEHICLE_TTL,
+    STATION_TYPE_LABELS,
 )
 from .sensor import OtmVehicleSensor, OtmNodeSensor, OtmAggSensor
 from .device_tracker import OtmDeviceTracker
@@ -33,7 +34,7 @@ def parse_vehicle_msg(payload: str) -> dict | None:
             "lon": int(its["its_its_longitude"]) / 1e7,
             "speed": int(its["its_its_speedValue"]) * 0.01 * 3.6,
             "heading": int(its["its_its_headingValue"]) / 10.0,
-            "station_type": str(its["its_its_stationType"]),
+            "station_type": STATION_TYPE_LABELS.get(str(its["its_its_stationType"]), str(its["its_its_stationType"])),
             "altitude": altitude,
             "yaw_rate": round(int(its["its_its_yawRateValue"]) / 100.0, 2),
             "drive_direction": "forward" if str(its.get("its_cam_driveDirection", "0")) == "0" else "backward",
