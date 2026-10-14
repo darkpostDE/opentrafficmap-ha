@@ -23,7 +23,7 @@ class OtmStatsAggregator:
         self._node_id = node_id
         self._path = os.path.join(config_dir, f"stats_{node_id}.json")
         self._data = copy.deepcopy(DEFAULT_STATS)
-        self._load()
+        self._loaded = False
         self._last_vehicle: dict | None = None
         self._last_seen: str | None = None
         self._known_stations: set[str] = set()
@@ -49,6 +49,9 @@ class OtmStatsAggregator:
 
     def update(self, parsed: dict) -> list[tuple[str, dict]]:
         """Update aggregations. Returns list of (event_type, event_data) to fire."""
+        if not self._loaded:
+            self._load()
+            self._loaded = True
         events = []
         sid = parsed["station_id"]
         speed = parsed.get("speed", 0.0)
